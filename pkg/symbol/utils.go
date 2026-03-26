@@ -15,7 +15,7 @@ func NewSymbolHub(cctx model.ConfigContext) *symbolHub {
 	return &symbolHub{cctx}
 }
 
-func (sh *symbolHub) NewSymbol(tp string, val string, syms []model.Symbol) (model.Symbol, error) {
+func (sh *symbolHub) NewSymbol(tp, val string, syms []model.Symbol) (model.Symbol, error) {
 	log.Debugf("NewSymbol: %v %v", tp, val)
 	switch tp {
 	case model.SYMTYPE_RAW:

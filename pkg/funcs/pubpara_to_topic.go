@@ -23,6 +23,6 @@ func (ppfunc *PubParaToTopicFunc) Execute(ctx model.MsgContext) (string, error) 
 	if !ok {
 		return "", fmt.Errorf("PubParaToTopicFunc: no pub_para for msg(%v)", ctx.Metadata())
 	}
-	params := strings.Replace(strings.TrimSpace(pubpara), "/", ".", -1)
+	params := strings.ReplaceAll(strings.TrimSpace(pubpara), "/", ".")
 	return params, nil
 }

@@ -106,30 +106,32 @@ func (ps *parser) parseValue(str string) (model.Symbol, error) {
 	for i, c := range str {
 		switch status {
 		case "out":
-			if c == '{' {
+			switch c {
+			case '{':
 				tail = i
 				if head < tail {
 					part := str[head:tail]
 					switch part {
 					case model.KEYWORD_NULL:
-						sym, _ = symhub.NewSymbol(model.SYMTYPE_KEYWORD, part, nil)
+						sym, err = symhub.NewSymbol(model.SYMTYPE_KEYWORD, part, nil)
 					default:
 						sym, err = symhub.NewSymbol(model.SYMTYPE_RAW, part, nil)
-						if err != nil {
-							return nil, err
-						}
+					}
+					if err != nil {
+						return nil, err
 					}
 					sysms = append(sysms, sym)
 				}
 				head = tail
 				status = "in"
-			} else if c == '}' {
+			case '}':
 				return nil, fmt.Errorf("parseValue: position %v of value '%v' has wrong brace", i, str)
 			}
 		case "in":
-			if c == '{' {
+			switch c {
+			case '{':
 				return nil, fmt.Errorf("parseValue: position %v of value '%v' has wrong brace", i, str)
-			} else if c == '}' {
+			case '}':
 				tail = i + 1
 				part := str[head:tail]
 				sym, err := ps.parseSymbol(part)
@@ -149,23 +151,26 @@ func (ps *parser) parseValue(str string) (model.Symbol, error) {
 		part := str[head:]
 		switch part {
 		case model.KEYWORD_NULL:
-			sym, _ = symhub.NewSymbol(model.SYMTYPE_KEYWORD, part, nil)
+			sym, err = symhub.NewSymbol(model.SYMTYPE_KEYWORD, part, nil)
 		default:
 			sym, err = symhub.NewSymbol(model.SYMTYPE_RAW, part, nil)
-			if err != nil {
-				return nil, err
-			}
+		}
+		if err != nil {
+			return nil, err
 		}
 		sysms = append(sysms, sym)
 	}
 
 	var result model.Symbol
 	if len(sysms) > 1 {
-		result, _ = symhub.NewSymbol(model.SYMTYPE_MIX, "", sysms)
+		result, err = symhub.NewSymbol(model.SYMTYPE_MIX, "", sysms)
 	} else if len(sysms) == 1 {
 		result = sysms[0]
 	} else {
-		result, _ = symhub.NewSymbol(model.SYMTYPE_RAW, "", nil)
+		result, err = symhub.NewSymbol(model.SYMTYPE_RAW, "", nil)
+	}
+	if err != nil {
+		return nil, err
 	}
 	return result, nil
 }
