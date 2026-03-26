@@ -1,9 +1,11 @@
 # MSGGW (Message Gateway)
 
+[![CI](https://github.com/leonkaihao/msggw/workflows/CI/badge.svg)](https://github.com/leonkaihao/msggw/actions/workflows/ci.yml)
 [![Go Version](https://img.shields.io/badge/Go-1.19+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/leonkaihao/msggw)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Go Report Card](https://goreportcard.com/badge/github.com/leonkaihao/msggw)](https://goreportcard.com/report/github.com/leonkaihao/msggw)
+[![codecov](https://codecov.io/gh/leonkaihao/msggw/branch/main/graph/badge.svg)](https://codecov.io/gh/leonkaihao/msggw)
 
 A high-performance message gateway written in Go for filtering and transforming messages between different message brokers. MSGGW enables seamless message routing and transformation between multiple NATS brokers with powerful rule-based processing.
 
@@ -223,7 +225,24 @@ See [configs/server_side.json](configs/server_side.json) for a complete example 
 ### Run Tests
 
 ```bash
+# Run all tests
 go test ./...
+
+# Run tests with coverage
+go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+
+# View coverage report
+go tool cover -html=coverage.out
+```
+
+### Linting
+
+```bash
+# Install golangci-lint (if not already installed)
+go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+
+# Run linters
+golangci-lint run
 ```
 
 ### Build Commands
@@ -234,6 +253,28 @@ make container  # Build Docker image
 make clean      # Clean build artifacts
 ```
 
+### Continuous Integration
+
+This project uses GitHub Actions for CI/CD:
+
+- **CI Workflow**: Runs on every push and pull request
+  - Linting with golangci-lint
+  - Unit tests with race detection
+  - Code coverage reporting
+  - Binary build
+  - Docker image build
+
+- **Release Workflow**: Triggers on version tags (e.g., `v1.1.0`)
+  - Builds multi-platform binaries (Linux, macOS, Windows)
+  - Creates GitHub release with changelog
+  - Publishes Docker image to GitHub Container Registry
+
+To create a new release:
+```bash
+git tag -a v1.2.0 -m "Release v1.2.0"
+git push origin v1.2.0
+```
+
 ## Dependencies
 
 - [msgbus](https://github.com/leonkaihao/msgbus) - Message bus abstraction library
@@ -242,7 +283,21 @@ make clean      # Clean build artifacts
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+
+### Quick Contribution Guide
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+Please ensure:
+- All tests pass
+- Code is properly formatted
+- Linters pass without errors
+- Documentation is updated if needed
 
 ## License
 
