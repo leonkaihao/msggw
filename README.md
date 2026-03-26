@@ -1,106 +1,257 @@
-# Introduction
-MSGGW(message gateway) is a Golang program that is filtering and transforming messages between different brokers.
-Currently it is aimed to nats-internal and nats-public messages.
+# MSGGW (Message Gateway)
 
-# File structure
+[![Go Version](https://img.shields.io/badge/Go-1.19+-00ADD8?style=flat&logo=go)](https://go.dev/)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](https://github.com/leonkaihao/msggw)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Go Report Card](https://goreportcard.com/badge/github.com/leonkaihao/msggw)](https://goreportcard.com/report/github.com/leonkaihao/msggw)
+
+A high-performance message gateway written in Go for filtering and transforming messages between different message brokers. MSGGW enables seamless message routing and transformation between multiple NATS brokers with powerful rule-based processing.
+
+## Features
+
+- **Multi-Broker Support**: Connect and route messages between any number of NATS brokers
+- **Flexible Filtering**: Advanced filtering with ternary expressions (IS, NOT, MATCH operators)
+- **Message Transformation**: Transform message topics, metadata, and payload formats
+- **Branch Processing**: Conditional message routing with multiple processing branches
+- **Built-in Functions**: Extensible function system for dynamic message transformations
+- **Environment Variables**: Support for configuration properties and environment substitution
+- **Multiple Payload Formats**: Support for msgbus, edgebus, and raw payload formats
+- **Cloud Native**: Kubernetes-ready with Docker containerization support
+
+## Quick Start
+
+### Prerequisites
+
+- Go 1.19 or higher
+- NATS server(s)
+- Docker (optional, for containerized deployment)
+- Kubernetes (optional, for K8s deployment)
+
+### Installation
+
+#### Build from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/leonkaihao/msggw.git
+cd msggw
+
+# Build binary
+make build
+
+# Binary will be available in ./bin/msggw
+```
+
+#### Build Docker Image
+
+```bash
+make container
+```
+
+### Running MSGGW
+
+#### Run Binary
+
+```bash
+./bin/msggw ./configs/server_side.json
+```
+
+#### Run with Docker
+
+```bash
+docker run --network host leonkaihao/msggw:1.1.0
+```
+
+#### Deploy to Kubernetes
+
+```bash
+kubectl apply -f ./deployment/msggw-configmap.yaml
+kubectl apply -f ./deployment/msggw-deployment.yaml
+```
+
+## Configuration
+
+### Configuration Structure
+
+```json
+{
+  "logLevel": "info",
+  "props": {
+    "key": "value"
+  },
+  "brokers": [...],
+  "flows": [...]
+}
+```
+
+### Key Components
+
+#### 1. Log Level
+Set the logging verbosity: `info` or `debug`
+
+#### 2. Properties
+Define key-value pairs that can be referenced in flows using `{prop.key}` syntax.
+
+#### 3. Brokers
+Define multiple message brokers with unique names. You can configure any number of NATS brokers:
+
+```json
+[
+  {
+    "name": "broker-1",
+    "type": "nats",
+    "url": "nats://localhost:4222"
+  },
+  {
+    "name": "broker-2",
+    "type": "nats",
+    "url": "nats://another-server:4222"
+  }
+]
+```
+
+**Note**: Broker names must be unique and are referenced by flows for message routing.
+
+#### 4. Flows
+Define message processing pipelines:
+
+```json
+{
+  "name": "flow-name",
+  "source": "broker-name",
+  "subscribes": ["topic.>"],
+  "payload": "msgbus",
+  "branches": [...]
+}
+```
+
+### Branch Configuration
+
+Each branch contains filtering, transformation, and routing logic:
+
+```json
+{
+  "name": "branch-name",
+  "filters": [
+    "{metadata.name} IS notification",
+    "{metadata.pub_para} NOT NULL"
+  ],
+  "transforms": [
+    {"{topic}": "/.notification.{func.PubParaToTopic}"}
+  ],
+  "sendTo": {
+    "dest": "target-broker",
+    "payload": "raw"
+  }
+}
+```
+
+### Filter Expressions
+
+Filters use ternary expressions: `lval OPERATOR rval`
+
+**Operators:**
+- `IS` - Exact match
+- `NOT` - Negation
+- `MATCH` - Regular expression match
+
+**Value Types:**
+- `raw` - Raw string literals
+- `{topic}` - Message topic
+- `{metadata.field}` - Message metadata field
+- `{func.FunctionName}` - Built-in function
+- `{prop.key}` - Configuration property
+- `NULL` - Empty/null value keyword
+- `{/.mixed.{metadata.field}}` - Mixed expressions with sub-symbols
+
+### Transformations
+
+Transform message attributes before routing:
+
+```json
+{
+  "{topic}": "new.topic.{metadata.field}",
+  "{metadata.custom}": "{func.Timestamp}"
+}
+```
+
+### Built-in Functions
+
+- `PubParaToTopic` - Convert pub_para metadata to topic format
+- `PubAddrToTopic` - Convert pub_addr metadata to topic format
+- `Timestamp` - Generate timestamp
+
+## Project Structure
+
 ```
 .
-├── Makefile                    
-├── README.md
+├── Makefile                    # Build automation
+├── README.md                   # This file
 ├── app
-│   └── msggw        # code entrance
-├── bin              # binary build output
+│   └── msggw                  # Application entry point
+├── bin                        # Compiled binaries
 ├── build
-│   └── docker       # Docker file
-├── component.json   # product Version info
-├── configs          # configuration file example
-├── deployment       # k8s deployment script
-├── doc              # related documents
-├── go.mod
-├── go.sum
-├── pkg              # Go packages
-│   ├── config       # for reading config file
-│   ├── funcs        # Func support symbols with format `{func.*}`
-│   ├── model        # basic interfaces and consts
-│   ├── operator     # Operator support symbols with IS, NOT, MATCH ...
-│   ├── parser       # Parser for parsing symbols
-│   ├── service      # Generating business logic from a config file, and processing incoming messages with these configured logics.
-│   └── symbol       # symbol definitions for parser
-└── tests
+│   └── docker                 # Dockerfile
+├── component.json             # Version information
+├── configs                    # Configuration examples
+├── deployment                 # Kubernetes deployment files
+├── go.mod                     # Go module definition
+├── go.sum                     # Go dependencies checksum
+└── pkg                        # Go packages
+    ├── config                 # Configuration loader
+    ├── funcs                  # Built-in functions
+    ├── model                  # Core interfaces and constants
+    ├── operator               # Expression operators (IS, NOT, MATCH)
+    ├── parser                 # Expression parser
+    ├── service                # Business logic processor
+    └── symbol                 # Symbol definitions
 ```
-# How to build
-1. Binary
-    Do `make build`, and find binary in ./bin.
-2. Container
-    Do `make container` after step 1
 
-# How to run
-1. Binary
-    Run with command line `./bin/msggw ./configs/server_side.json`
-2. Container locally
-   `docker run msggw:latest --network host`
-3. on K8s
-   `kubectl apply -f ./deployment/msggw-deployment.yaml`
-   `kubectl apply -f ./deployment/msggw-configmap.yaml`
+## Example Configuration
 
-# Configuration
-1. Main structure
-   ```json
-    {
-        "logLevel": string,  // currently it has options of `info` and `debug`.
-        "props": object,     // properties that can be directly used in flow as env var. NOTE: K/V should be string.
-        "brokers": arr,      // define brokers, name is used by flow source and send dest. NOTE: the name should be unique.
-        "flows": arr         // processing logics
-    }
-   ```
-2. Flows array
-   Each flow means how to handle messages from a broker.
-   ```json
-   {
-        "name": string,            // flow name
-        "source": string,          // the name defined in `brokers.name` field
-        "subcribes": string arr,   // topics and wildcards for filtering
-        "payload": string,         // can be `msgbus`(msg from nats-internal) or `edgebus`(msg from edge side modules), 
-        "branches": object arr     // each branch has filter, transform and send strategy, like if conditions in programming language
-   }
-   ``` 
-3. Branch
-   When a message is coming, the message will pass though each branch in array sequence. 
-   Any match of a filter will let the message goes through the following process(transforms and sendTo), and won't process the following branches.
-   ```json
-   {
-        "name": string,            // branch name
-        "filters": arr,            // each string is a ternary expression(lval OP rval), result from expression will be logic AND together.
-        "transforms": object arr,  // transform the data that will be send, optional keys: "{metadata.*}" or "topic" 
-        "sendTo": object           // send to a broker(`dest` field) with specified payload(`payload` field)
-   }
-   ``` 
-4. Ternary expression for `filter`
-   the string is a form of `lval OP rVal`.
-   lval can be type of:
-   1. metadata
-   2. topic
-   OP can be value of:
-   1. IS
-   2. NOT
-   3. MATCH
-   rval can be of type:
-   1. raw:      raw string
-   2. topic:    message topic
-   3. metadata: message metadata. Value is like `{metadata.pub_para}`
-   4. func:     builtin functions. Value is like `{func.PubParaToTopic}`
-   5. prop:     prop field of configuration. Value is like `{prop.deviceId}`
-   6. keyword:  currently we only have `NULL` to imply an empty field.
-   7. mix:      a mixed symbol has composed sub symbols. Value is like `{/.org.{metadata.oid}}`
-5. Key and value for `transform`
-   Key should be one of:
-   1. metadata
-   2. topic
-   Value can be of type:(raw, topic, metadata, func, prop, keyword, mix) same as expression rvalue.
-6. Key and value for `sendTo `
-   ```json
-   {
-      "dest": string,     // find the value in broker name
-      "payload": string   // can be edgebus(to edge side) or msgbus(to server side)
-   }
-   ```
+See [configs/server_side.json](configs/server_side.json) for a complete example demonstrating:
+
+- Bidirectional message routing between multiple NATS brokers
+- Metadata-based filtering and routing
+- Dynamic topic transformation
+- Multiple payload format support
+
+**Note**: The example uses `nats-internal` and `nats-public` as broker names, but you can configure any number of brokers with custom names to suit your architecture.
+
+## Development
+
+### Run Tests
+
+```bash
+go test ./...
+```
+
+### Build Commands
+
+```bash
+make build      # Build binary
+make container  # Build Docker image
+make clean      # Clean build artifacts
+```
+
+## Dependencies
+
+- [msgbus](https://github.com/leonkaihao/msgbus) - Message bus abstraction library
+- [nats.go](https://github.com/nats-io/nats.go) - NATS client for Go
+- [logrus](https://github.com/sirupsen/logrus) - Structured logging
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Author
+
+**Leon KHao** - [leonkaihao](https://github.com/leonkaihao)
+
+## Support
+
+For issues and questions, please open an issue on the [GitHub repository](https://github.com/leonkaihao/msggw/issues).
