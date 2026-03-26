@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: msggw-config
+  namespace: default
+data:
+  config.json: |
+    {
+        "logLevel": "info",
+        "props": {
+            "name": "gateway",
+            "deviceId": "de$1"
+        },
+        "brokers": [
+            {"name": "nats-internal", "type": "nats", "url": "nats://nats:4222"},
+            {"name": "nats-public", "type": "nats", "url": "nats://nats-public:4222"}
+        ],
+        "flows": [
+            {
+                "name": "msg-from-internal",
+                "source": "nats-internal",
+                "subscribes": [
+                    "notification.>",
+                    "command.sensor",
+                    "event.sensor",
+                    "alarm.sensor",
+                    "event.rulesetDeploymentRequest"
+                ],
+                "payload": "msgbus",
+                "branches": [
+                    {
+                        "name": "notification-with-pub_para",
+                        "filters": [
+                            "{metadata.name} IS notification",
+                            "{metadata.pub_para} NOT NULL"
+                        ],
+                        "transforms": [{"{topic}": "/.notification.{func.PubParaToTopic}"}],
+                        "sendTo": {"dest": "nats-public", "payload": "raw"}
+                    },
+                    {
+                        "name": "others-with-pub_para_addr",
+                        "filters": [
+                            "{metadata.name} MATCH .*",
+                            "{metadata.pub_para} NOT NULL",
+                            "{metadata.pub_addr} NOT NULL"
+                        ],
+                        "transforms": [{"{topic}":"/.{func.PubAddrToTopic}.{func.PubParaToTopic}"}],
+                        "sendTo": {"dest": "nats-public", "payload": "edgebus"}
+                    },
+                    {
+                        "name": "others-without-pub_addr",
+                        "filters": [
+                            "{metadata.name} MATCH .*",
+                            "{metadata.pub_para} NOT NULL",
+                            "{metadata.pub_addr} IS NULL",
+                            "{metadata.oid} NOT NULL"
+                        ],
+                        "transforms": [{"{topic}":"/.org.{metadata.oid}.device.{metadata.did}.{func.PubParaToTopic}"}],
+                        "sendTo": {"dest": "nats-public", "payload": "edgebus"}
+                    }
+                ]
+            },
+            {
+                "name": "msg-from-public",
+                "source": "nats-public",
+                "subscribes": ["/.org.>"],
+                "payload": "edgebus",
+                "branches": [
+                    {
+                        "name": "sensor-reading",
+                        "filters": ["{topic} MATCH sensor.reading"],
+                        "transforms": [{
+                            "{topic}": "reading.sensor"
+                        }],
+                        "sendTo": {"dest": "nats-internal", "payload": "msgbus"}
+                    }, {
+                        "name": "sensor-event",
+                        "filters": ["{topic} MATCH sensor.event"],
+                        "transforms": [{
+                            "{topic}": "event.sensor"
+                        }],
+                        "sendTo": {"dest": "nats-internal", "payload": "msgbus"}
+                    }, {
+                        "name": "sensor-alarm",
+                        "filters": ["{topic} MATCH sensor.alarm"],
+                        "transforms": [{
+                            "{topic}": "alarm.sensor"
+                        }],
+                        "sendTo": {"dest": "nats-internal", "payload": "msgbus"}
+                    }, {
+                        "name": "ruleset-deployment-ack",
+                        "filters": ["{topic} MATCH automation.deployment"],
+                        "transforms": [{
+                            "{topic}": "event.rulesetDeploymentResponse"
+                        }],
+                        "sendTo": {"dest": "nats-internal", "payload": "msgbus"}
+                    }
+                ]
+            }
+        ]
+    }

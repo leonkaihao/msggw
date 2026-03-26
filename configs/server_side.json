@@ -1,0 +1,113 @@
+{
+    "logLevel": "info",
+    "props": {
+        "name": "helix-gateway",
+        "deviceId": "de$ctrl1"
+    },
+    "brokers": [
+        { "name": "nats-internal", "type": "nats", "url": "$NATS_PORT" },
+        {
+            "name": "nats-public",
+            "type": "nats",
+            "url": "$NATS_PUBLIC_PORT"
+        }
+    ],
+    "flows": [
+        {
+            "name": "msg-from-internal",
+            "source": "nats-internal",
+            "subscribes": [
+                "notification.>",
+                "command.sensor",
+                "event.rulesetDeploymentRequest"
+            ],
+            "payload": "msgbus",
+            "branches": [
+                {
+                    "name": "notification-with-pub_para",
+                    "filters": [
+                        "{metadata.name} IS notification",
+                        "{metadata.pub_para} NOT NULL"
+                    ],
+                    "transforms": [
+                        { "{topic}": "/.notification.{func.PubParaToTopic}" }
+                    ],
+                    "sendTo": { "dest": "nats-public", "payload": "raw" }
+                },
+                {
+                    "name": "others-with-pub_para_addr",
+                    "filters": [
+                        "{metadata.name} MATCH .*",
+                        "{metadata.pub_para} NOT NULL",
+                        "{metadata.pub_addr} NOT NULL"
+                    ],
+                    "transforms": [
+                        {
+                            "{topic}": "/.{func.PubAddrToTopic}.{func.PubParaToTopic}"
+                        }
+                    ],
+                    "sendTo": { "dest": "nats-public", "payload": "edgebus" }
+                },
+                {
+                    "name": "others-without-pub_addr",
+                    "filters": [
+                        "{metadata.name} MATCH .*",
+                        "{metadata.pub_para} NOT NULL",
+                        "{metadata.pub_addr} IS NULL",
+                        "{metadata.oid} NOT NULL"
+                    ],
+                    "transforms": [
+                        {
+                            "{topic}": "/.org.{metadata.oid}.device.{metadata.did}.{func.PubParaToTopic}"
+                        }
+                    ],
+                    "sendTo": { "dest": "nats-public", "payload": "edgebus" }
+                }
+            ]
+        },
+        {
+            "name": "msg-from-public",
+            "source": "nats-public",
+            "subscribes": ["/.org.>"],
+            "payload": "edgebus",
+            "branches": [
+                {
+                    "name": "sensor-messages",
+                    "filters": ["{topic} MATCH sensor.(reading|event|alarm)"],
+                    "transforms": [
+                        { "{topic}": "{metadata.name}.sensor" }
+                    ],
+                    "sendTo": { "dest": "nats-internal", "payload": "msgbus" }
+                },
+                {
+                    "name": "automation-messages",
+                    "filters": [
+                        "{metadata.msg_type} MATCH rulesetDeploymentResponse|ruleexec"
+                    ],
+                    "transforms": [{ "{topic}": "event.{metadata.msg_type}" }],
+                    "sendTo": { "dest": "nats-internal", "payload": "msgbus" }
+                },
+                {
+                    "name": "location-events-sensahub",
+                    "filters": [
+                        "{metadata.msg_type} MATCH absloc|relloc",
+                        "{metadata.dt} MATCH SENSA"
+                    ],
+                    "transforms": [
+                        { "{topic}": "{metadata.name}.{metadata.msg_type}" }
+                    ],
+                    "sendTo": { "dest": "nats-internal", "payload": "msgbus" }
+                },
+                {
+                    "name": "geospatial-events-sensahub",
+                    "filters": [
+                        "{metadata.msg_type} MATCH beaconDetect|zoEntry|zoLeave",
+                        "{metadata.dt} MATCH SENSA"
+                    ],
+                    "transforms": [{ "{topic}": "event.{metadata.msg_type}" }],
+                    "sendTo": { "dest": "nats-internal", "payload": "msgbus" }
+                }
+            ]
+        }
+    ]
+}

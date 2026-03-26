@@ -1,0 +1,9 @@
+FROM alpine:3
+
+RUN mkdir -p /app/configs
+COPY bin/msggw /app
+COPY configs/server_side.json /app/configs/config.json
+RUN chmod +x /app/msggw
+
+WORKDIR /app
+CMD [ "./msggw", "./configs/config.json" ]
