@@ -26,7 +26,9 @@ func (ld *jsonLoader) Load(configPath string) (*Config, error) {
 		log.Errorf("Error: %s", err)
 		return nil, err
 	}
-	defer fi.Close()
+	defer func() {
+		_ = fi.Close()
+	}()
 	buf, err := io.ReadAll(fi)
 	if err != nil {
 		log.Errorf("Error: %s", err)

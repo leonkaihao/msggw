@@ -162,12 +162,13 @@ func (ps *parser) parseValue(str string) (model.Symbol, error) {
 	}
 
 	var result model.Symbol
-	if len(sysms) > 1 {
-		result, err = symhub.NewSymbol(model.SYMTYPE_MIX, "", sysms)
-	} else if len(sysms) == 1 {
-		result = sysms[0]
-	} else {
+	switch len(sysms) {
+	case 0:
 		result, err = symhub.NewSymbol(model.SYMTYPE_RAW, "", nil)
+	case 1:
+		result = sysms[0]
+	default: // len(sysms) > 1
+		result, err = symhub.NewSymbol(model.SYMTYPE_MIX, "", sysms)
 	}
 	if err != nil {
 		return nil, err

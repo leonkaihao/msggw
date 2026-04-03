@@ -27,7 +27,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Error: %v", err)
 	}
-	svc.Start()
+	_ = svc.Start()
 	defer svc.Close()
 
 	excepSig := make(chan os.Signal, 1)
