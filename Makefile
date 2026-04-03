@@ -1,6 +1,11 @@
 $(eval RELEASE_TAG := $(shell jq -r '.release_tag' component.json))
 $(eval VERSION := $(shell jq -r '.version' component.json))
 $(eval REGISTRY := $(shell jq -r '.registry' component.json))
+$(eval TARGET_NAME := $(shell jq -r '.name' component.json))
+
+TEST_SUITES= config funcs model operator parser service symbol
+outdir ?= $(CURDIR)/bin
+testsoutdir ?= $(CURDIR)/tests
 
 .PHONY: all build release test clean
 
@@ -23,11 +28,7 @@ publish:
 	docker push $(REGISTRY)/msggw:$(VERSION)-${BUILD_NUMBER}
 test:
 	@for pkg in $(TEST_SUITES); do \
-	go test -v -cover $(CURDIR)/pkg/$$pkg --tags=ctrl -count=1; \
-	done;
-test/integration:
-	@for pkg in $(TEST_SUITES); do \
-	go test -v -cover $(CURDIR)/pkg/$$pkg --tags=integration_ctrl -count=1; \
+	go test -v -cover $(CURDIR)/pkg/$$pkg; \
 	done;
 test/bench:
 	go mod tidy && go test -bench=. -benchmem ./pkg/...

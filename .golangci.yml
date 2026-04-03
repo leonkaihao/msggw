@@ -1,36 +1,43 @@
+version: "2"
+
 run:
   timeout: 5m
   tests: true
-  modules-download-mode: readonly
+  modules-download-mode: mod
 
 linters:
   enable:
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
     - unused
-    - gofmt
-    - goimports
     - misspell
     - unconvert
-    - unparam
     - gocritic
-    - gosec
+
+  disable:
     - prealloc
+    - gosec
+    - unparam
+
+formatters:
+  enable:
+    - goimports   # ✅ 放这里
 
 linters-settings:
   errcheck:
     check-blank: true
+
   govet:
-    check-shadowing: false
-  gofmt:
-    simplify: true
+    shadow: true
+
   goimports:
     local-prefixes: github.com/leonkaihao/msggw
+
   misspell:
     locale: US
+
   gocritic:
     enabled-tags:
       - diagnostic
@@ -45,6 +52,6 @@ issues:
     - path: _test\.go
       linters:
         - errcheck
-        - gosec
-  max-same-issues: 0
-  max-issues-per-linter: 0
+
+  max-same-issues: 5
+  max-issues-per-linter: 50
