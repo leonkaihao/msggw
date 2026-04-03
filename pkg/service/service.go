@@ -18,14 +18,18 @@ type Service interface {
 
 type service struct {
 	cfg        *config.Config
-	client     mbmodel.Client
+	clients    map[string]mbmodel.Client
 	brokers    map[string]mbmodel.Broker  // name: broker
 	mbServices map[string]mbmodel.Service // name: flow
 	cctx       model.ConfigContext
 }
 
 func NewService(cfg *config.Config) (Service, error) {
-	svc := &service{cfg: cfg, cctx: model.NewConfigContext(cfg.Props)}
+	svc := &service{
+		cfg:     cfg,
+		cctx:    model.NewConfigContext(cfg.Props),
+		clients: make(map[string]mbmodel.Client),
+	}
 	if err := svc.buildAll(); err != nil {
 		return nil, err
 	}
@@ -34,7 +38,9 @@ func NewService(cfg *config.Config) (Service, error) {
 
 func (svc *service) Start() error {
 	for _, s := range svc.mbServices {
-		go s.Serve()
+		go func(s mbmodel.Service) {
+			_ = s.Serve()
+		}(s)
 	}
 	return nil
 }
@@ -43,7 +49,9 @@ func (svc *service) Close() {
 	for _, s := range svc.mbServices {
 		s.Close()
 	}
-	svc.client.Close()
+	for _, cli := range svc.clients {
+		cli.Close()
+	}
 	svc.brokers = map[string]mbmodel.Broker{}
 	svc.mbServices = map[string]mbmodel.Service{}
 }
@@ -51,12 +59,10 @@ func (svc *service) Close() {
 //----------------------------------------------------------
 
 func (svc *service) buildAll() error {
-	var err error
-	cli, err := svc.buildClient()
+	err := svc.buildClient()
 	if err != nil {
 		return err
 	}
-	svc.client = cli
 
 	brks, err := svc.buildBrokers(svc.cfg.Brokers)
 	if err != nil {
@@ -72,18 +78,43 @@ func (svc *service) buildAll() error {
 	return nil
 }
 
-func (svc *service) buildClient() (mbmodel.Client, error) {
-	cli, err := mbclient.NewBuilder(mbclient.CLI_NATS).Build()
-	return cli, err
+func (svc *service) buildClient() error {
+	natscli, err := mbclient.NewBuilder(mbclient.CLI_NATS).Build()
+	if err != nil {
+		return err
+	}
+	mqtt3cli, err := mbclient.NewBuilder(mbclient.CLI_MQTT3).Build()
+	if err != nil {
+		return err
+	}
+	inproccli, err := mbclient.NewBuilder(mbclient.CLI_INPROC).Build()
+	if err != nil {
+		return err
+	}
+	svc.clients[model.BROKERTYPE_NATS] = natscli
+	svc.clients[model.BROKERTYPE_MQTT3] = mqtt3cli
+	svc.clients[model.BROKERTYPE_INPROC] = inproccli
+
+	return nil
+}
+
+func (svc *service) getClient(brokerType string) (mbmodel.Client, error) {
+	cli, ok := svc.clients[brokerType]
+	if !ok {
+		return nil, fmt.Errorf("getClient: no client of type %v", brokerType)
+	}
+	return cli, nil
 }
 
 func (svc *service) buildBrokers(cfgbrokers []*config.Broker) (map[string]mbmodel.Broker, error) {
 	brks := make(map[string]mbmodel.Broker)
 	for _, cfgbrk := range cfgbrokers {
-		if cfgbrk.Type != model.BROKERTYPE_NATS {
-			return nil, fmt.Errorf("buildBrokers: broker has type %v, expect %v", cfgbrk.Type, model.BROKERTYPE_NATS)
+		cli, err := svc.getClient(cfgbrk.Type)
+		if err != nil {
+			return nil, err
 		}
-		brk := svc.client.Broker(cfgbrk.Url)
+
+		brk := cli.Broker(cfgbrk.Url)
 		brks[cfgbrk.Name] = brk
 	}
 	return brks, nil

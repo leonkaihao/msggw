@@ -24,7 +24,9 @@ const (
 )
 
 const (
-	BROKERTYPE_NATS = "nats"
+	BROKERTYPE_NATS   = "nats"
+	BROKERTYPE_MQTT3  = "mqtt3"
+	BROKERTYPE_INPROC = "inproc"
 )
 
 const (
