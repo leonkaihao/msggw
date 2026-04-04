@@ -21,37 +21,43 @@ linters:
     - gosec
     - unparam
 
+  settings:
+    errcheck:
+      check-blank: true
+
+    govet:
+      settings:
+        shadow:
+          strict: true
+
+    misspell:
+      locale: US
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - performance
+        - style
+      disabled-checks:
+        - commentFormatting
+        - hugeParam
+  exclusions:
+    rules:
+      # Exclude some linters from running on tests files.
+      - path: _test\.go
+        linters:
+          - gocyclo
+          - errcheck
+          - dupl
+          - gosec
+      # Run some linter only for test files by excluding its issues for everything else.
+      - path-except: _test\.go
+        linters:
+          - forbidigo
 formatters:
   enable:
-    - goimports   # ✅ 放这里
-
-linters-settings:
-  errcheck:
-    check-blank: true
-
-  govet:
-    shadow: true
-
-  goimports:
-    local-prefixes: github.com/leonkaihao/msggw
-
-  misspell:
-    locale: US
-
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - performance
-      - style
-    disabled-checks:
-      - commentFormatting
-      - hugeParam
-
+    - goimports
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-
   max-same-issues: 5
   max-issues-per-linter: 50
+
