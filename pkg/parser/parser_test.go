@@ -10,7 +10,7 @@ import (
 func Test_parser_ParseExpression(t *testing.T) {
 	parser := NewParser(model.NewConfigContext(map[string]string{"name": "test", "deviceId": "dev1"}))
 
-	//negtive tests
+	// negative tests
 	_, err := parser.ParseExpression("")
 	if err == nil {
 		t.Errorf("expect num error but got nil")
@@ -114,7 +114,7 @@ func Test_parser_ParseValue(t *testing.T) {
 
 	parser := NewParser(model.NewConfigContext(map[string]string{"name": "test", "deviceId": "dev1"}))
 
-	//negative tests
+	// negative tests
 	_, err := parser.ParseValue("{")
 	if err == nil {
 		t.Error("expect incompleted brace error")

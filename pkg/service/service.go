@@ -47,10 +47,10 @@ func (svc *service) Start() error {
 
 func (svc *service) Close() {
 	for _, s := range svc.mbServices {
-		s.Close()
+		_ = s.Close()
 	}
 	for _, cli := range svc.clients {
-		cli.Close()
+		_ = cli.Close()
 	}
 	svc.brokers = map[string]mbmodel.Broker{}
 	svc.mbServices = map[string]mbmodel.Service{}
